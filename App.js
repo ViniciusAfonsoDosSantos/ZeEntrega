@@ -1,8 +1,6 @@
 //RETIRAR - SO BASEAR
 
 
-
-
 import { StatusBar } from 'expo-status-bar';
 import {
   Alert, Text, TextInput, TouchableOpacity,

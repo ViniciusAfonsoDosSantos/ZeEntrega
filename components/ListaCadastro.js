@@ -3,28 +3,34 @@ import React from 'react';
 import { View, Text, FlatList, StyleSheet, TouchableOpacity } from 'react-native';
 
 export default function ListaCadastro({ dados, onEdit, onDelete }) {
-  const renderItem = ({ item }) => (
-    <View style={styles.itemContainer}>
-      <View>
-        <Text style={styles.titulo}>{item.nome}</Text>
-        {item.preco && <Text style={styles.descricao}>Preço: R${item.preco.toFixed(2)}</Text>}
-        {item.categoria && <Text style={styles.descricao}>Categoria: {item.categoria}</Text>}
+  const renderItem = ({ item }) => {
+    const nome = item.descricao 
+    const preco = item.preco 
+    const categoria = item.categoria
+
+    return (
+      <View style={styles.itemContainer}>
+        <View>
+          <Text style={styles.titulo}>{nome}</Text>
+          <Text style={styles.descricao}>Preço: {preco}</Text>
+          <Text style={styles.descricao}>Categoria: {categoria}</Text>
+        </View>
+        <View style={styles.botoes}>
+          <TouchableOpacity onPress={() => onEdit(item)} style={styles.botaoEditar}>
+            <Text style={styles.botaoTexto}>Editar</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => onDelete(item.codigo)} style={styles.botaoExcluir}>
+            <Text style={styles.botaoTexto}>Excluir</Text>
+          </TouchableOpacity>
+        </View>
       </View>
-      <View style={styles.botoes}>
-        <TouchableOpacity onPress={() => onEdit(item)} style={styles.botaoEditar}>
-          <Text style={styles.botaoTexto}>Editar</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => onDelete(item.id)} style={styles.botaoExcluir}>
-          <Text style={styles.botaoTexto}>Excluir</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
+    );
+  };
 
   return (
     <FlatList
       data={dados}
-      keyExtractor={(item) => item.id.toString()}
+      keyExtractor={(item) => item.id ? item.id.toString() : '0'} // Garantir que id existe e é único
       renderItem={renderItem}
     />
   );

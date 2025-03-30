@@ -1,48 +1,97 @@
 // screens/TelaCRUDCategoria.js
-import React, { useState } from 'react';
-import { View, Text, TextInput, Button, StyleSheet, ScrollView } from 'react-native';
-import ListaCadastro from '../components/ListaCadastro';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TextInput, Button, StyleSheet, ScrollView, Alert } from 'react-native';
+import * as DbCategoria from '../services/dbCategoria';  // Importe o serviço de banco de dados
 
 export default function TelaCRUDCategoria() {
   const [categorias, setCategorias] = useState([]);
   const [nome, setNome] = useState('');
   const [editandoId, setEditandoId] = useState(null);
 
-  const salvarCategoria = () => {
+  // Função para carregar as categorias do banco de dados
+  const carregarCategorias = async () => {
+    try {
+      const categoriasDoBanco = await DbCategoria.obtemTodasCategorias();
+      setCategorias(categoriasDoBanco);
+    } catch (error) {
+      Alert.alert('Erro', 'Não foi possível carregar as categorias.');
+      console.error(error);
+    }
+  };
+
+  // Função para salvar ou atualizar a categoria
+  const salvarCategoria = async () => {
     if (!nome) return;
 
+    const novaCategoria = {
+      codigo: editandoId || Date.now().toString(), // Usando 'codigo' como chave única
+      nome,
+    };
+
     if (editandoId !== null) {
-      setCategorias((prev) =>
-        prev.map((item) =>
-          item.id === editandoId ? { ...item, nome } : item
-        )
-      );
-      setEditandoId(null);
+      const sucesso = await DbCategoria.alteraCategoria(novaCategoria);
+      if (sucesso) {
+        Alert.alert('Sucesso', 'Categoria atualizada.');
+      } else {
+        Alert.alert('Erro', 'Falha ao atualizar categoria.');
+      }
     } else {
-      setCategorias([...categorias, {
-        id: Date.now(),
-        nome,
-      }]);
+      const sucesso = await DbCategoria.adicionaCategoria(novaCategoria);
+      if (sucesso) {
+        Alert.alert('Sucesso', 'Categoria adicionada.');
+      } else {
+        Alert.alert('Erro', 'Falha ao adicionar categoria.');
+      }
     }
 
     setNome('');
+    setEditandoId(null);
+    carregarCategorias(); // Recarrega a lista de categorias após a operação
   };
 
+  // Função para editar uma categoria
   const editarCategoria = (categoria) => {
     setNome(categoria.nome);
-    setEditandoId(categoria.id);
+    setEditandoId(categoria.codigo); // Armazenar o código da categoria para edição
   };
 
-  const excluirCategoria = (id) => {
-    setCategorias(categorias.filter((item) => item.id !== id));
+  // Função para excluir uma categoria
+  const excluirCategoria = async (codigo) => {
+    const sucesso = await DbCategoria.excluiCategoria(codigo);
+    if (sucesso) {
+      Alert.alert('Sucesso', 'Categoria excluída.');
+    } else {
+      Alert.alert('Erro', 'Falha ao excluir categoria.');
+    }
+    carregarCategorias(); // Recarrega a lista de categorias após a exclusão
   };
+
+  // Carregar categorias quando a tela for montada
+  useEffect(() => {
+    carregarCategorias();
+  }, []);
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.titulo}>Cadastro de Categorias</Text>
-      <TextInput placeholder="Nome da Categoria" style={styles.input} value={nome} onChangeText={setNome} />
+      <TextInput
+        placeholder="Nome da Categoria"
+        style={styles.input}
+        value={nome}
+        onChangeText={setNome}
+      />
       <Button title={editandoId ? 'Atualizar' : 'Adicionar'} onPress={salvarCategoria} />
-      <ListaCadastro dados={categorias} onEdit={editarCategoria} onDelete={excluirCategoria} />
+      
+      {/* Lista de categorias */}
+      <View style={styles.lista}>
+        {categorias.map((categoria) => (
+          <View key={categoria.codigo} style={styles.item}>
+            <Text>{categoria.nome}</Text>
+            <Button title="Editar" onPress={() => editarCategoria(categoria)} />
+            <Button title="Excluir" onPress={() => excluirCategoria(categoria.codigo)} />
+          </View>
+        ))}
+      </View>
     </ScrollView>
   );
 }
@@ -65,5 +114,14 @@ const styles = StyleSheet.create({
     padding: 10,
     marginBottom: 12,
     borderRadius: 8,
+  },
+  lista: {
+    marginTop: 20,
+  },
+  item: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
   },
 });

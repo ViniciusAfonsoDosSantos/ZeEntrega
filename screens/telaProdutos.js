@@ -1,28 +1,42 @@
-// screens/TelaProdutos.js
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import * as DbService from '../services/dbProduto';
+import { CartContext } from '../context/CartContext';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function TelaProdutos() {
-  const [produtos, setProdutos] = useState([
-    { id: 1, nome: 'Camisa', preco: 50, categoria: 'Roupas' },
-    { id: 2, nome: 'Tênis', preco: 120, categoria: 'Calçados' },
-    { id: 3, nome: 'Boné', preco: 30, categoria: 'Acessórios' },
-  ]);
-  const [carrinho, setCarrinho] = useState([]);
+  const [produtos, setProdutos] = useState([]);
+  const { adicionarAoCarrinho } = useContext(CartContext);
 
-  const adicionarAoCarrinho = (produto) => {
-    setCarrinho([...carrinho, produto]);
-    Alert.alert('Adicionado!', `${produto.nome} foi adicionado ao carrinho.`);
+  const carregarProdutos = async () => {
+    try {
+      const dadosProdutos = await DbService.obtemTodosProdutos();
+      setProdutos(dadosProdutos);
+    } catch (error) {
+      Alert.alert('Erro', 'Não foi possível carregar os produtos.');
+      console.error(error);
+    }
+  };
+
+  useFocusEffect(
+    React.useCallback(() => {
+      carregarProdutos();
+    }, [])
+  );
+
+  const handleComprar = (produto) => {
+    adicionarAoCarrinho(produto);
+    Alert.alert('Adicionado!', `${produto.descricao} foi adicionado ao carrinho.`);
   };
 
   const renderItem = ({ item }) => (
     <View style={styles.itemContainer}>
       <View>
-        <Text style={styles.nome}>{item.nome}</Text>
+        <Text style={styles.nome}>{item.descricao}</Text>
         <Text style={styles.detalhe}>Preço: R${item.preco.toFixed(2)}</Text>
         <Text style={styles.detalhe}>Categoria: {item.categoria}</Text>
       </View>
-      <TouchableOpacity onPress={() => adicionarAoCarrinho(item)} style={styles.botaoComprar}>
+      <TouchableOpacity onPress={() => handleComprar(item)} style={styles.botaoComprar}>
         <Text style={styles.botaoTexto}>Comprar</Text>
       </TouchableOpacity>
     </View>
@@ -33,7 +47,7 @@ export default function TelaProdutos() {
       <Text style={styles.titulo}>Produtos Disponíveis</Text>
       <FlatList
         data={produtos}
-        keyExtractor={(item) => item.id.toString()}
+        keyExtractor={(item) => item.codigo.toString()}
         renderItem={renderItem}
       />
     </View>

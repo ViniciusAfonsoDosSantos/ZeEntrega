@@ -1,36 +1,60 @@
 // screens/TelaHistoricoVendas.js
 import React, { useState } from 'react';
-import { View, Text, FlatList, StyleSheet } from 'react-native';
+import { View, Text, FlatList, StyleSheet, Alert } from 'react-native';
+import * as DbVenda from '../services/dbVenda';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function TelaHistoricoVendas() {
-  const [vendas, setVendas] = useState([
-    {
-      id: 1,
-      data: '2025-03-25',
-      total: 170,
-      itens: [
-        { nome: 'Camisa', preco: 50 },
-        { nome: 'Tênis', preco: 120 },
-      ],
-    },
-    {
-      id: 2,
-      data: '2025-03-26',
-      total: 30,
-      itens: [
-        { nome: 'Boné', preco: 30 },
-      ],
-    },
-  ]);
+  const [vendas, setVendas] = useState([]);
+
+  const carregarVendas = async () => {
+    try {
+      const vendasDoBanco = await DbVenda.obtemTodasVendas();
+      const dbVendasCx = await DbVenda.getDbConnection();
+
+      const vendasComItens = await Promise.all(
+        vendasDoBanco.map(async (venda) => {
+          const produtosVenda = await DbVenda.obtemProdutosDaVenda(venda.codigo, dbVendasCx);
+
+          const total = produtosVenda.reduce(
+            (acc, p) => acc + p.preco * p.quantidade,
+            0
+          );
+
+          return {
+            codigo: venda.codigo,
+            data: venda.data,
+            itens: produtosVenda,
+            total,
+          };
+        })
+      );
+
+      await dbVendasCx.closeAsync();
+      setVendas(vendasComItens);
+
+    } catch (error) {
+      Alert.alert('Erro', 'Não foi possível carregar o histórico de vendas.');
+      console.error(error);
+    }
+  };
+
+  useFocusEffect(
+    React.useCallback(() => {
+      carregarVendas();
+    }, [])
+  );
 
   const renderItem = ({ item }) => (
     <View style={styles.vendaContainer}>
-      <Text style={styles.titulo}>Venda #{item.id}</Text>
+      <Text style={styles.titulo}>Venda #{item.codigo}</Text>
       <Text style={styles.data}>Data: {item.data}</Text>
       <Text style={styles.total}>Total: R${item.total.toFixed(2)}</Text>
       <Text style={styles.subtitulo}>Produtos:</Text>
       {item.itens.map((produto, index) => (
-        <Text key={index} style={styles.item}>- {produto.nome} (R${produto.preco.toFixed(2)})</Text>
+        <Text key={index} style={styles.item}>
+          - {produto.descricao} ({produto.quantidade}x) - R${produto.preco.toFixed(2)} cada
+        </Text>
       ))}
     </View>
   );
@@ -40,7 +64,7 @@ export default function TelaHistoricoVendas() {
       <Text style={styles.header}>Histórico de Vendas</Text>
       <FlatList
         data={vendas}
-        keyExtractor={(item) => item.id.toString()}
+        keyExtractor={(item) => item.codigo.toString()}
         renderItem={renderItem}
       />
     </View>

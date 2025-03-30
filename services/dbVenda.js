@@ -1,86 +1,143 @@
+// services/dbVenda.js
 import * as SQLite from 'expo-sqlite/next';
 
 export async function getDbConnection() {
-    const cx = await SQLite.openDatabaseAsync('dbVendas.db');
-    return cx;
+  console.log("Abrindo conexão com o banco de dados dbVendas.db...");
+  const cx = await SQLite.openDatabaseAsync('dbVendas.db');
+  console.log("Conexão com dbVendas.db aberta.");
+  return cx;
 }
 
-export async function createTable() {    
-    const query = `CREATE TABLE IF NOT EXISTS tbVendas
-        (
-            codigo text not null primary key,
-            data text not null
-        )`;
-    var cx = await getDbConnection();
-    await cx.execAsync(query);   
-    await cx.closeAsync();
-    
-    const queryProdutosVenda = `CREATE TABLE IF NOT EXISTS tbProdutosVenda
-        (
-            vendaCodigo text not null,
-            produtoCodigo text not null,
-            quantidade integer not null,
-            foreign key(vendaCodigo) references tbVendas(codigo),
-            foreign key(produtoCodigo) references tbProdutos(codigo),
-            primary key(vendaCodigo, produtoCodigo)
-        )`;
-    cx = await getDbConnection();
-    await cx.execAsync(queryProdutosVenda);
-    await cx.closeAsync();
-};
+export async function createTable() {
+  const queryVendas = `CREATE TABLE IF NOT EXISTS tbVendas (
+    codigo TEXT NOT NULL PRIMARY KEY,
+    data TEXT NOT NULL
+  )`;
+
+  const queryProdutosVenda = `CREATE TABLE IF NOT EXISTS tbProdutosVenda (
+    vendaCodigo TEXT NOT NULL,
+    produtoCodigo TEXT NOT NULL,
+    descricao TEXT NOT NULL,
+    preco REAL NOT NULL,
+    categoria TEXT NOT NULL,
+    quantidade INTEGER NOT NULL,
+    PRIMARY KEY(vendaCodigo, produtoCodigo),
+    FOREIGN KEY(vendaCodigo) REFERENCES tbVendas(codigo)
+  )`;
+
+  const cx = await getDbConnection();
+  await cx.execAsync(queryVendas);
+  await cx.execAsync(queryProdutosVenda);
+  await cx.closeAsync();
+}
 
 export async function obtemTodasVendas() {
-    var retorno = [];
-    var dbCx = await getDbConnection();
-    const registros = await dbCx.getAllAsync('SELECT * FROM tbVendas');
-    await dbCx.closeAsync();
+  console.log("Obtendo todas as vendas...");
+  let dbCx = await getDbConnection();
+  const registros = await dbCx.getAllAsync('SELECT * FROM tbVendas');
+  await dbCx.closeAsync();
 
-    for (const registro of registros) {
-        let obj = {
-            codigo: registro.codigo,
-            data: registro.data
-        };
-        retorno.push(obj);
-    }
-
-    return retorno;
+  return registros.map((registro) => ({
+    codigo: registro.codigo,
+    data: registro.data,
+  }));
 }
 
 export async function adicionaVenda(venda, produtos) {
-    let dbCx = await getDbConnection();
-    
-    const queryVenda = 'insert into tbVendas (codigo, data) values (?,?)';
-    const resultVenda = await dbCx.runAsync(queryVenda, [venda.codigo, venda.data]);
+  console.log("Adicionando venda:", venda);
+  let dbCx = await getDbConnection();
 
-    for (let produto of produtos) {
-        const queryProdutoVenda = 'insert into tbProdutosVenda (vendaCodigo, produtoCodigo, quantidade) values (?,?,?)';
-        await dbCx.runAsync(queryProdutoVenda, [venda.codigo, produto.codigo, produto.quantidade]);
-    }
+  const queryVenda = 'INSERT INTO tbVendas (codigo, data) VALUES (?, ?)';
+  const resultVenda = await dbCx.runAsync(queryVenda, [venda.codigo, venda.data]);
 
-    await dbCx.closeAsync();
-    return resultVenda.changes == 1;
+  for (let produto of produtos) {
+    const queryProdutoVenda = `
+      INSERT INTO tbProdutosVenda (
+        vendaCodigo, produtoCodigo, descricao, preco, categoria, quantidade
+      ) VALUES (?, ?, ?, ?, ?, ?)
+    `;
+    await dbCx.runAsync(queryProdutoVenda, [
+      venda.codigo,
+      produto.codigo,
+      produto.descricao,
+      produto.preco,
+      produto.categoria,
+      produto.quantidade
+    ]);
+  }
+
+  await dbCx.closeAsync();
+  return resultVenda.changes === 1;
+}
+
+export async function obtemProdutosDaVenda(vendaCodigo, dbCx = null) {
+  console.log(`Buscando produtos da venda ${vendaCodigo}...`);
+
+  let dbInterna = false;
+  if (!dbCx) {
+    dbCx = await getDbConnection();
+    dbInterna = true;
+  }
+
+  const query = 'SELECT * FROM tbProdutosVenda WHERE vendaCodigo = ?';
+  const registros = await dbCx.getAllAsync(query, [vendaCodigo]);
+
+  if (dbInterna) await dbCx.closeAsync();
+
+  return registros.map((registro) => ({
+    produtoCodigo: registro.produtoCodigo,
+    descricao: registro.descricao,
+    preco: registro.preco,
+    categoria: registro.categoria,
+    quantidade: registro.quantidade,
+  }));
 }
 
 export async function excluiVenda(codigo) {
-    let dbCx = await getDbConnection();
-    
-    let queryProdutosVenda = 'delete from tbProdutosVenda where vendaCodigo=?';
-    await dbCx.runAsync(queryProdutosVenda, [codigo]);
-    
-    let queryVenda = 'delete from tbVendas where codigo=?';
-    const resultVenda = await dbCx.runAsync(queryVenda, [codigo]);
-
-    await dbCx.closeAsync();
-    return resultVenda.changes == 1;
+  let dbCx = await getDbConnection();
+  await dbCx.runAsync('DELETE FROM tbProdutosVenda WHERE vendaCodigo = ?', [codigo]);
+  const result = await dbCx.runAsync('DELETE FROM tbVendas WHERE codigo = ?', [codigo]);
+  await dbCx.closeAsync();
+  return result.changes === 1;
 }
 
-export async function excluiTodasVendas() {
-    let dbCx = await getDbConnection();
-    let queryProdutosVenda = 'delete from tbProdutosVenda';
-    await dbCx.execAsync(queryProdutosVenda);
-
-    let queryVendas = 'delete from tbVendas';
-    await dbCx.execAsync(queryVendas);
-
-    await dbCx.closeAsync();
+export async function reiniciarTabelasVenda() {
+  const db = await getDbConnection();
+  await db.execAsync('DELETE FROM tbProdutosVenda');
+  await db.execAsync('DELETE FROM tbVendas');
+  await db.closeAsync();
+  console.log("Tabelas tbVendas e tbProdutosVenda foram reiniciadas (dados apagados).");
 }
+
+export async function recriarTabelasVenda() {
+  const db = await getDbConnection();
+
+  await db.execAsync('DROP TABLE IF EXISTS tbProdutosVenda');
+  await db.execAsync('DROP TABLE IF EXISTS tbVendas');
+
+  const queryVendas = `
+    CREATE TABLE IF NOT EXISTS tbVendas (
+      codigo TEXT NOT NULL PRIMARY KEY,
+      data TEXT NOT NULL
+    )
+  `;
+
+  const queryProdutosVenda = `
+    CREATE TABLE IF NOT EXISTS tbProdutosVenda (
+      vendaCodigo TEXT NOT NULL,
+      produtoCodigo TEXT NOT NULL,
+      descricao TEXT NOT NULL,
+      preco REAL NOT NULL,
+      categoria TEXT NOT NULL,
+      quantidade INTEGER NOT NULL,
+      PRIMARY KEY (vendaCodigo, produtoCodigo)
+    )
+  `;
+
+  await db.execAsync(queryVendas);
+  await db.execAsync(queryProdutosVenda);
+  await db.closeAsync();
+
+  console.log("Tabelas tbVendas e tbProdutosVenda foram dropadas e recriadas.");
+}
+

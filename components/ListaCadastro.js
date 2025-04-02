@@ -1,19 +1,24 @@
-// components/ListaCadastro.js
 import React from 'react';
 import { View, Text, FlatList, StyleSheet, TouchableOpacity } from 'react-native';
 
 export default function ListaCadastro({ dados, onEdit, onDelete }) {
   const renderItem = ({ item }) => {
-    const nome = item.descricao 
-    const preco = item.preco 
-    const categoria = item.categoria
+    // Verifica se é um produto ou uma categoria e ajusta a renderização
+    const isProduto = item.hasOwnProperty('descricao');  // Verifica se é um produto
+    const nome = isProduto ? item.descricao : item.nome; // Para produto ou categoria
+    const preco = isProduto ? item.preco : null; // Só para produtos
+    const categoria = isProduto ? item.categoria : null; // Só para produtos
 
     return (
       <View style={styles.itemContainer}>
         <View>
           <Text style={styles.titulo}>{nome}</Text>
-          <Text style={styles.descricao}>Preço: {preco}</Text>
-          <Text style={styles.descricao}>Categoria: {categoria}</Text>
+          {isProduto && (
+            <>
+              <Text style={styles.descricao}>Preço: {preco}</Text>
+              <Text style={styles.descricao}>Categoria: {categoria}</Text>
+            </>
+          )}
         </View>
         <View style={styles.botoes}>
           <TouchableOpacity onPress={() => onEdit(item)} style={styles.botaoEditar}>
@@ -30,8 +35,9 @@ export default function ListaCadastro({ dados, onEdit, onDelete }) {
   return (
     <FlatList
       data={dados}
-      keyExtractor={(item) => item.id ? item.id.toString() : '0'} // Garantir que id existe e é único
+      keyExtractor={(item, index) => `${item.codigo}-${index}`}  // Combina código com índice para garantir a chave única
       renderItem={renderItem}
+      contentContainerStyle={styles.flatListContainer}  // Garantir que o FlatList ocupe o espaço correto
     />
   );
 }
@@ -72,5 +78,8 @@ const styles = StyleSheet.create({
   botaoTexto: {
     color: '#fff',
     fontWeight: 'bold',
+  },
+  flatListContainer: {
+    flexGrow: 1,  // Certifique-se de que o FlatList ocupe o espaço disponível
   },
 });

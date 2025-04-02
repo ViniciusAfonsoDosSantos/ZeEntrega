@@ -130,7 +130,7 @@ export default function TelaCRUDProduto() {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <View style={styles.container}>
       <Text style={styles.titulo}>Cadastro de Produtos</Text>
       <TextInput
         placeholder="Descrição"
@@ -157,14 +157,18 @@ export default function TelaCRUDProduto() {
           ))}
         </Picker>
       </View>
-
+  
       <TouchableOpacity style={styles.botao} onPress={salvarProduto}>
         <Text style={styles.textoBotao}>{editandoId ? 'Atualizar' : 'Adicionar'}</Text>
       </TouchableOpacity>
-
+  
+      {/* ListaCadastro já lida com a rolagem, então não precisa de ScrollView */}
+      <View style={{ flex: 1 }}>
       <ListaCadastro dados={produtos} onEdit={editarProduto} onDelete={excluirProduto} />
-    </ScrollView>
+    </View>
+        </View>
   );
+  
 }
 
 const styles = StyleSheet.create({

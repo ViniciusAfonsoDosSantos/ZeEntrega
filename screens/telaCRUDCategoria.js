@@ -1,6 +1,6 @@
-// screens/TelaCRUDCategoria.js
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, Button, StyleSheet, ScrollView, Alert } from 'react-native';
+import { View, Text, TextInput, Button, StyleSheet, Alert } from 'react-native';
+import ListaCadastro from '../components/ListaCadastro'; // Importar ListaCadastro
 import * as DbCategoria from '../services/dbCategoria';  // Importe o serviço de banco de dados
 
 export default function TelaCRUDCategoria() {
@@ -72,7 +72,7 @@ export default function TelaCRUDCategoria() {
   }, []);
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <View style={styles.container}>
       <Text style={styles.titulo}>Cadastro de Categorias</Text>
       <TextInput
         placeholder="Nome da Categoria"
@@ -82,17 +82,13 @@ export default function TelaCRUDCategoria() {
       />
       <Button title={editandoId ? 'Atualizar' : 'Adicionar'} onPress={salvarCategoria} />
       
-      {/* Lista de categorias */}
-      <View style={styles.lista}>
-        {categorias.map((categoria) => (
-          <View key={categoria.codigo} style={styles.item}>
-            <Text>{categoria.nome}</Text>
-            <Button title="Editar" onPress={() => editarCategoria(categoria)} />
-            <Button title="Excluir" onPress={() => excluirCategoria(categoria.codigo)} />
-          </View>
-        ))}
-      </View>
-    </ScrollView>
+      {/* Usando ListaCadastro para listar as categorias */}
+      <ListaCadastro
+        dados={categorias}
+        onEdit={editarCategoria}
+        onDelete={excluirCategoria}
+      />
+    </View>
   );
 }
 

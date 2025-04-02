@@ -3,6 +3,12 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, Keyboard, StyleSheet } from 'react-native';
 import ListaCadastro from '../components/ListaCadastro';
 import * as DbProduto from '../services/dbProduto'; // Importando a lógica de dbProduto
+import { Picker } from '@react-native-picker/picker';
+import * as DbCategoria from '../services/dbCategoria'; // import do banco de categorias
+import { useFocusEffect } from '@react-navigation/native';
+import { useCallback } from 'react';
+
+
 
 export default function TelaCRUDProduto() {
   const [produtos, setProdutos] = useState([]);
@@ -11,10 +17,19 @@ export default function TelaCRUDProduto() {
   const [preco, setPreco] = useState('');
   const [categoria, setCategoria] = useState('');
   const [editandoId, setEditandoId] = useState(null);
+  const [categorias, setCategorias] = useState([]);
+
 
   useEffect(() => {
     carregaProdutos();
   }, []);
+  
+  useFocusEffect(
+    useCallback(() => {
+      carregaCategorias();
+    }, [])
+  );
+  
 
   // Função para carregar todos os produtos
   const carregaProdutos = async () => {
@@ -23,6 +38,15 @@ export default function TelaCRUDProduto() {
       setProdutos(dados);
     } catch (e) {
       Alert.alert('Erro', e.message);
+    }
+  };
+
+  const carregaCategorias = async () => {
+    try {
+      const dados = await DbCategoria.obtemTodasCategorias();
+      setCategorias(dados);
+    } catch (e) {
+      Alert.alert('Erro ao carregar categorias', e.message);
     }
   };
 
@@ -121,12 +145,19 @@ export default function TelaCRUDProduto() {
         onChangeText={setPreco}
         keyboardType="decimal-pad"
       />
-      <TextInput
-        placeholder="Categoria"
-        style={styles.input}
-        value={categoria}
-        onChangeText={setCategoria}
-      />
+      <View style={styles.pickerContainer}>
+        <Picker
+          selectedValue={categoria}
+          onValueChange={(itemValue) => setCategoria(itemValue)}
+          style={styles.picker}
+        >
+          <Picker.Item label="Selecione uma categoria" value="" />
+          {categorias.map((cat) => (
+            <Picker.Item key={cat.codigo} label={cat.nome} value={cat.nome} />
+          ))}
+        </Picker>
+      </View>
+
       <TouchableOpacity style={styles.botao} onPress={salvarProduto}>
         <Text style={styles.textoBotao}>{editandoId ? 'Atualizar' : 'Adicionar'}</Text>
       </TouchableOpacity>
@@ -166,4 +197,16 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
   },
+  pickerContainer: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 8,
+    backgroundColor: '#fff',
+    marginBottom: 12,
+  },
+  picker: {
+    height: 50,
+    width: '100%',
+  },
+  
 });
